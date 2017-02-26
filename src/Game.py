@@ -222,7 +222,7 @@ class Game:
 		self.loop = 0
 		self.liveSnakes = self.MAX_SNAKES
 		self.run += 1
-		self.min_fitness = -50
+		self.min_fitness = 100
 		self.mean_fitness = 0
 		self.start_time = time.time()
 
