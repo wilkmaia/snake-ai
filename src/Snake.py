@@ -11,9 +11,10 @@ class Direction(Enum):
 	LEFT = 3
 
 class Snake:
-	STEP = 42
+	STEP = 24
 	PROP_CCW = 0.45
 	PROP_CW = 0.65
+	MUL = 2
 
 	updateCountMax = 2
 
@@ -25,14 +26,14 @@ class Snake:
 		self.DIRECTION = Direction.RIGHT
 
 		self.updateCount = 0
-		self.STEP = step
+		self.STEP = step / self.MUL
 		for i in range(length):
 			xN = random.randint(0, Game.Game.MAX_COORD)
 			yN = random.randint(0, Game.Game.MAX_COORD)
-			self.x.append(self.STEP * (xN - i))
-			self.y.append(self.STEP * yN)
+			self.x.append(self.STEP * self.MUL * (xN - i))
+			self.y.append(self.STEP * self.MUL * yN)
 
-		self.NETWORK = Network(mutRate=1)
+		self.NETWORK = Network(mutRate=0.7)
 		self.snakeNumber = snakeN
 
 		self.foodCount = 0
@@ -153,8 +154,8 @@ class Snake:
 		for i in range(self.length):
 			xN = random.randint(0, Game.Game.MAX_COORD)
 			yN = random.randint(0, Game.Game.MAX_COORD)
-			self.x.append(self.STEP * (xN - i))
-			self.y.append(self.STEP * yN)
+			self.x.append(self.STEP * self.MUL * (xN - i))
+			self.y.append(self.STEP * self.MUL * yN)
 
 		self.updateCount = 0;
 		self.foodCount = 0;
