@@ -20,20 +20,21 @@ def getDistance(x1, y1, x2, y2):
 	return sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2))
 
 class Game:
-	WIDTH = 720
-	HEIGHT = 720
+	WIDTH = 984
+	HEIGHT = 984
 	STEP = 24
 	MAX_SNAKES = 20 # make sure it's even
-	MAX_FOOD = 40
+	MAX_FOOD = 20
 	MAX_LOOPS_PER_RUN = 500
 	TIME_SLEEP = 0.001
-	MAX_COORD = 30
+	MAX_COORD = WIDTH / STEP - 1
 	INITIAL_LENGTH = 4
 
 	run = 1
 	start_time = 0
-	max_fitness = -50
+	min_fitness = 100
 	mean_fitness = 0
+	overall_min_fitness = 100
 
 	snakes_array = []
 	food_array = []
@@ -45,6 +46,7 @@ class Game:
 		self._display_surf = None
 		self._snake_surf = None
 		self._food_surf = None
+		self._start_time = time.time()
 
 		for i in range(self.MAX_SNAKES):
 			self.snakes_array.append(Snake(self.INITIAL_LENGTH, self.STEP, i + 1))
@@ -92,7 +94,7 @@ class Game:
 					# Found food
 					snake.foundFood()
 					food.rellocate(random.randint(0, self.MAX_COORD), random.randint(0, self.MAX_COORD))
-					print("Got food! - Food Count:", snake.foodCount)
+					#print("Got food! - Food Count:", snake.foodCount)
 
 			snake.setInputValues(self.food_array[idxMinDistance].x, self.food_array[idxMinDistance].y)
 
@@ -100,25 +102,25 @@ class Game:
 			if snake.x[0] > self.WIDTH or snake.x[0] < 0 or snake.y[0] > self.HEIGHT or snake.y[0] < 0:
 				snake.isDead = True
 				self.liveSnakes -= 1
-				snake.calcFitness(-0.5 + time.time()-self.start_time)
+				snake.calcFitness(-1 + time.time()-self.start_time)
 				self.mean_fitness += snake.fitness
 
-				if snake.fitness > self.max_fitness:
-					self.max_fitness = snake.fitness
+				if snake.fitness < self.min_fitness:
+					self.min_fitness = snake.fitness
 
-				print("Wall collision! - Food Count:", snake.foodCount, "/ Fitness:", snake.fitness)
+				#print("Wall collision! - Food Count:", snake.foodCount, "/ Fitness:", snake.fitness)
 
 			# Self collision
 			if snake.collidedOnSelf() == True:
 				snake.isDead = True
 				self.liveSnakes -= 1
-				snake.calcFitness(-1 + time.time()-self.start_time)
+				snake.calcFitness(-3 + time.time()-self.start_time)
 				self.mean_fitness += snake.fitness
 
-				if snake.fitness > self.max_fitness:
-					self.max_fitness = snake.fitness
+				if snake.fitness < self.min_fitness:
+					self.min_fitness = snake.fitness
 
-				print("Self collision! - Food Count:", snake.foodCount, "/ Fitness:", snake.fitness)
+				#print("Self collision! - Food Count:", snake.foodCount, "/ Fitness:", snake.fitness)
 
 		if self.loop == self.MAX_LOOPS_PER_RUN:
 			self.resetLevel()
@@ -135,6 +137,9 @@ class Game:
 		#print("Live snakes: ", self.liveSnakes)
 
 	def on_cleanup(self):
+		print("")
+		print("Elapsed time:", time.time() - self._start_time, "seconds.")
+		print("")
 		pygame.display.quit()
 		pygame.quit()
 
@@ -175,8 +180,8 @@ class Game:
 		for idx, snake in enumerate(self.snakes_array):
 			if snake.isDead == False:
 				snake.calcFitness(time.time()-self.start_time)
-				if self.max_fitness < snake.fitness:
-					self.max_fitness = snake.fitness
+				if self.min_fitness > snake.fitness:
+					self.min_fitness = snake.fitness
 					self.mean_fitness += snake.fitness
 
 			fitness[idx] = snake.fitness
@@ -202,18 +207,22 @@ class Game:
 			snake.reset()
 
 		self.mean_fitness /= self.MAX_SNAKES
+		if self.overall_min_fitness >= self.min_fitness:
+			self.overall_min_fitness = self.min_fitness
+
 		print("")
 		print("Resetting level...")
-		print("Run #", self.run, "- info:")
-		print("Time elapsed: ", time.time() - self.start_time, " seconds")
-		print("Max fitness: ", self.max_fitness, " / Mean fitness: ", self.mean_fitness)
+		print("Gen", self.run, "info:")
+		print("Time elapsed:", time.time() - self.start_time, "seconds")
+		print("Min fitness gen: ", self.min_fitness, "/ Mean fitness: ", self.mean_fitness)
+		print("Overall Min Fitness:", self.overall_min_fitness)
 		print("")
 
 		visitedNeurons.clear()
 		self.loop = 0
 		self.liveSnakes = self.MAX_SNAKES
 		self.run += 1
-		self.max_fitness = -50
+		self.min_fitness = -50
 		self.mean_fitness = 0
 		self.start_time = time.time()
 

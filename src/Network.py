@@ -8,8 +8,8 @@ from Synapse import Synapse
 import random
 
 class Network:
-	MUTATION_RATE = 1
-	INNER_MUTATION_RATE = 0.5
+	MUTATION_RATE = 0.5
+	INNER_MUTATION_RATE = 0.3
 	EPSILON = 0.1
 
 	def __init__(self, mutRate=1):
@@ -64,7 +64,6 @@ class Network:
 		if r <= self.MUTATION_RATE:
 			self.mutateChangeWeights()
 
-			#print(self.INNER_MUTATION_RATE)
 			if r <= self.INNER_MUTATION_RATE:
 				mut_type = random.randint(0, 3)
 				if mut_type == 0:
@@ -85,18 +84,10 @@ class Network:
 	def mutateRemoveNeuron(self):
 		if len(self.inputOutputNode_list) > 0:
 			tmp = self.getRandomNeuron(self.inputOutputNode_list)
-			print("input list:", tmp.getInputList())
 			for syn in tmp.getOutputList():
 				syn.getDestinationNeuron().getInputList().remove(syn)
 			for syn in tmp.getInputList():
-				print("")
-				print("syn:", syn)
-				print("src neuron:", syn.getSourceNeuron())
-				print("outp list:", syn.getSourceNeuron().getOutputList())
-				print("")
 				syn.getSourceNeuron().getOutputList().remove(syn)
-				print("outp list:", syn.getSourceNeuron().getOutputList())
-				print("")
 
 			tmp.getInputList().clear()
 			tmp.getOutputList().clear()

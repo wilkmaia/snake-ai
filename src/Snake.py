@@ -141,7 +141,9 @@ class Snake:
 			self.wallDistance = self.x[0]
 
 	def calcFitness(self, penalty=0):
-		self.fitness = 3 / ( 0.5 + self.foodCount ) + 1 / penalty
+		self.fitness = 10 / ( 0.5 + self.foodCount ) + 1 / penalty
+		if self.fitness <= 0:
+			self.fitness = 100 # Penalty
 
 	def reset(self):
 		self.isDead = False;
