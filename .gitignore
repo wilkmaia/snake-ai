@@ -48,3 +48,8 @@ Temporary Items
 
 # Pyc files
 *.pyc
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/snake-ai.iml
+.idea/workspace.xml
