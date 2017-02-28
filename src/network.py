@@ -63,7 +63,7 @@ class Network:
         if r <= self.MUTATION_RATE:
             self.mutate_change_weights(delta)
 
-            if r <= self.INNER_MUTATION_RATE:
+            if r <= self.INNER_MUTATION_RATE or delta != 1:
                 mut_type = random.randint(0, 3)
                 # mutation_list = ["Add Neuron",
                 #                  "Remove Neuron",

@@ -1,5 +1,6 @@
 from enum import Enum
 import math
+import time
 
 import game
 from network import Network
@@ -19,7 +20,7 @@ class Snake:
     MUL = 1
     UPDATE_COUNT_MAX = 0
     NETWORK_MUTATE_RATE = 1
-    NUMBER_OF_INPUTS = 6
+    NUMBER_OF_INPUTS = 8
 
     def __init__(self, x, y, length, snake_number):
         self.x = []
@@ -30,6 +31,7 @@ class Snake:
         self.INITIAL_X = x
         self.INITIAL_Y = y
         self.DIRECTION = Direction.RIGHT
+        self.timeLastFood = time.time()
 
         for i in range(length):
             self.x.append(game.STEP * self.MUL * (x - i))
@@ -92,8 +94,8 @@ class Snake:
                 self.inputDistanceBottom,
                 self.inputDistanceLeft,
                 # self.forbiddenMove,
-                # self.lastMoves[0],
-                # self.lastMoves[1],
+                self.lastMoves[0],
+                self.lastMoves[1],
                 # self.lastMoves[2],
                 # self.lastMoves[3]
             ])
@@ -168,6 +170,7 @@ class Snake:
     def found_food(self):
         self.length += 1
         self.foodCount += 1
+        self.timeLastFood = time.time()
 
         self.x.append(self.x[self.length - 2])
         self.y.append(self.y[self.length - 2])
@@ -178,7 +181,7 @@ class Snake:
         # Distances to the 4 walls
         # Last 2 moves
         self.inputList = [Neuron(), Neuron(), Neuron(), Neuron(), Neuron(),
-                          Neuron()]
+                          Neuron(), Neuron(), Neuron()]
 
         self.network.sensorList = self.inputList
         self.network.inputNodeList = self.inputList
@@ -259,7 +262,7 @@ class Snake:
         #     self.inputLeftTile = 0
 
     def calc_fitness(self, penalty=1):
-        self.fitness = 1 / math.exp(self.foodCount - penalty)\
+        self.fitness = 1 / math.exp(self.foodCount - penalty - (time.time()-self.timeLastFood)/2)\
                        # + 1/math.exp(penalty)\
                        # + 1/math.exp(self.groundCovered/5)
 
