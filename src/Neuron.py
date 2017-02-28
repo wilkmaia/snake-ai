@@ -1,64 +1,49 @@
 import random
 import math
-import Network
+
+import network
+
 
 def sigmoid(x):
-	return 1 / (1 + math.exp(-x))
+    return 1 / (1 + math.exp(-x))
 
 visitedNeurons = []
 
+
 class Neuron:
-	def __init__(self):
-		self.z = 0
-		self.bias = random.gauss(0, 1)
-		self.k = random.random()
+    def __init__(self):
+        self.z = 0
+        self.y = 0
+        self.k = random.random()
 
-		self.input_list = []
-		self.output_list = []
-		self.bias = 0
-		self.y = 0
+        self.inputList = []
+        self.outputList = []
 
-	def activate(self, m=0):
-		m +=1
-		#print("m =", m)
+    def activate(self):
+        if len(self.inputList) == 0:
+            return self.y
 
-		if len(self.input_list) == 0:
-			return self.y
+        self.z = 0
+        for syn in self.inputList:
+            if syn.sourceNeuron in visitedNeurons:
+                continue
 
-		self.z = 0
-		for syn in self.input_list:
-			#print("Input List:", self.input_list)
-			if syn.getSourceNeuron() in visitedNeurons:
-				continue
+            visitedNeurons.append(syn.sourceNeuron)
+            self.z += syn.weight * syn.sourceNeuron.activate()
 
-			visitedNeurons.append(syn.getSourceNeuron())
-			#print("Source Neuron:", syn.getSourceNeuron())
+        return sigmoid(self.z)
 
-			self.z += syn.getWeight() * syn.getSourceNeuron().activate(m)
-			#print("Visited Neurons:", visitedNeurons)
+    def add_input(self, s):
+        self.inputList.append(s)
 
-		return sigmoid(Network.Network.EPSILON * self.z)
+    def add_output(self, s):
+        self.outputList.append(s)
 
-	def addInput(self, s):
-		self.input_list.append(s)
+    def __key(self):
+        return self.k
 
-	def addOutput(self, s):
-		self.output_list.append(s)
+    def __eq__(self, other):
+        return self.k == other.k
 
-	def getInputList(self):
-		return self.input_list
-
-	def getOutputList(self):
-		return self.output_list
-
-	def getOutput(self):
-		return self.y
-
-	def setOutput(self, val):
-		self.y = val
-
-	def __key(self):
-		return (self.k)
-
-	def __hash__(self):
-		return hash(self.__key())
+    def __hash__(self):
+        return hash(self.__key())

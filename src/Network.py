@@ -1,223 +1,229 @@
-# Neural network consisting of 1 output neuron and
-# 2 input neurons (sensors)
+# Neural network consisting of 4 output neurons and
+# 10 input neurons (sensors)
 # The hidden layer(s) is(are) gonna be arranged by a GA
 
-from Neuron import Neuron
-from Neuron import visitedNeurons
-from Synapse import Synapse
 import random
 
+from neuron import Neuron
+from neuron import visitedNeurons
+from synapse import Synapse
+
+
+def get_random_element(list_):
+    idx = random.randint(0, len(list_) - 1)
+    return list_[idx]
+
+
 class Network:
-	MUTATION_RATE = 0.5
-	INNER_MUTATION_RATE = 0.3
-	EPSILON = 0.1
+    MUTATION_RATE = 0.7
+    INNER_MUTATION_RATE = 0.3
 
-	def __init__(self, mutRate=1):
-		self.sensor_list = []
-		self.inputNode_list = []
-		self.outputNode_list = []
-		self.inputOutputNode_list = []
+    def __init__(self, mut_rate=1):
+        self.sensorList = []
+        self.inputNodeList = []
+        self.outputNodeList = []
+        self.inputOutputNodeList = []
 
-		self.actuator = Neuron()
+        self.actuatorList = []
+        self.actuatorList.append(Neuron())
+        self.actuatorList.append(Neuron())
+        self.actuatorList.append(Neuron())
+        self.actuatorList.append(Neuron())
 
-		self.outputNode_list.append(self.actuator)
-		self.MUTATION_RATE = mutRate
+        self.outputNodeList.extend(self.actuatorList)
+        self.MUTATION_RATE = mut_rate
+        self.EPSILON = random.randint(-1000, 1000) / 1000
 
-	def propagate(self):
-		visitedNeurons.clear()
-		
-		prop = self.actuator.activate()
-		return prop
+    def activate(self):
+        p = []
+        for neuron in self.actuatorList:
+            p.append(neuron.activate())
+        return p
 
-	def setInputNodeList(self, l):
-		self.inputNode_list = l
+    def propagate(self):
+        visitedNeurons.clear()
+        return self.activate()
 
-	def setOutputNodeList(self, l):
-		self.outputNode_list = l
+    def set_input_values(self, list_):
+        if len(self.sensorList) != len(list_):
+            # print("########### ERROR set_input_values - {} {}".format(len(self.sensorList), len(list_)))
+            # print("sensorList =", self.sensorList)
+            # print("list_ =", list_)
+            print(len(self.sensorList))
+            # return
 
-	def setInputOutputNodeList(self, l):
-		self.inputOutputNode_list = l
+        i = 0
+        for sensor in self.sensorList:
+            sensor.y = list_[i]
+            i += 1
 
-	def setSensorList(self, l):
-		self.sensor_list = l
-		self.inputNode_list += l
+    def mutate(self):
+        r = random.random()
+        if r <= self.MUTATION_RATE:
+            self.mutate_change_weights()
 
-	def setActuator(self, n):
-		self.actuator = n
-		self.outputNode_list.append(n)
+            if r <= self.INNER_MUTATION_RATE:
+                mut_type = random.randint(0, 3)
+                mutation_list = ["Add Neuron",
+                                 "Remove Neuron",
+                                 "Change Weights",
+                                 "Add Synapse"]
+                print("Mutating:", mutation_list[mut_type])
+                if mut_type == 0:
+                    self.mutate_add_neuron()
+                elif mut_type == 1:
+                    self.mutate_remove_neuron()
+                elif mut_type == 2:
+                    self.mutate_change_weights()
+                elif mut_type == 3:
+                    self.mutate_add_synapse()
 
-	def setInputValues(self, l):
-		if len(self.sensor_list) != len(l):
-			print("########### ERROR setInputValues")
+    def mutate_change_weights(self):
+        if len(self.inputOutputNodeList) > 0:
+            tmp = get_random_element(self.inputOutputNodeList)
+            for syn in tmp.inputList:
+                syn.weight = random.uniform(-1, 1)
 
-		i = 0
-		for sensor in self.sensor_list:
-			sensor.setOutput(l[i])
-			i += 1
+    def mutate_remove_neuron(self):
+        if len(self.inputOutputNodeList) > 0:
+            tmp = get_random_element(self.inputOutputNodeList)
+            for syn in tmp.outputList:
+                syn.destinationNeuron.inputList.remove(syn)
+            for syn in tmp.inputList:
+                syn.sourceNeuron.outputList.remove(syn)
 
-	def getRandomNeuron(self, l):
-		idx = random.randint(0, len(l) - 1)
-		return l[idx]
+            tmp.inputList.clear()
+            tmp.outputList.clear()
 
-	def mutate(self):
-		r = random.random()
-		if r <= self.MUTATION_RATE:
-			self.mutateChangeWeights()
+            self.outputNodeList.remove(tmp)
+            self.inputNodeList.remove(tmp)
+            self.inputOutputNodeList.remove(tmp)
 
-			if r <= self.INNER_MUTATION_RATE:
-				mut_type = random.randint(0, 3)
-				if mut_type == 0:
-					self.mutateAddNeuron()
-				elif mut_type == 1:
-					self.mutateRemoveNeuron()
-				elif mut_type == 2:
-					self.mutateChangeWeights()
-				elif mut_type == 3:
-					self.mutateAddSynapse()
+    def mutate_add_neuron(self):
+        tmp = Neuron()
 
-	def mutateChangeWeights(self):
-		if len(self.inputOutputNode_list) > 0:
-			tmp = self.getRandomNeuron(self.inputOutputNode_list)
-			for syn in tmp.getInputList():
-				syn.setWeight(random.random())
+        src = get_random_element(self.inputNodeList)
+        syn_in = Synapse(src, tmp, random.uniform(-1, 1))
+        src.add_output(syn_in)
+        tmp.add_input(syn_in)
 
-	def mutateRemoveNeuron(self):
-		if len(self.inputOutputNode_list) > 0:
-			tmp = self.getRandomNeuron(self.inputOutputNode_list)
-			for syn in tmp.getOutputList():
-				syn.getDestinationNeuron().getInputList().remove(syn)
-			for syn in tmp.getInputList():
-				syn.getSourceNeuron().getOutputList().remove(syn)
+        dst = get_random_element(self.outputNodeList)
+        syn_out = Synapse(tmp, dst, random.uniform(-1, 1))
+        tmp.add_output(syn_out)
+        dst.add_input(syn_out)
 
-			tmp.getInputList().clear()
-			tmp.getOutputList().clear()
+        self.inputNodeList.append(tmp)
+        self.outputNodeList.append(tmp)
+        self.inputOutputNodeList.append(tmp)
 
-			self.outputNode_list.remove(tmp)
-			self.inputNode_list.remove(tmp)
-			self.inputOutputNode_list.remove(tmp)
+    def mutate_add_synapse(self):
+        src = get_random_element(self.inputNodeList)
+        dst = src
+        while src == dst:
+            dst = get_random_element(self.outputNodeList)
 
-	def mutateAddNeuron(self):
-		tmp = Neuron()
+        syn = Synapse(src, dst, random.uniform(-1, 1))
+        src.add_output(syn)
+        dst.add_input(syn)
 
-		src = self.getRandomNeuron(self.inputNode_list)
-		synIn = Synapse(src, tmp, self.EPSILON * random.random())
-		src.addOutput(synIn)
-		tmp.addInput(synIn)
+    def copy(self):
+        q = []
+        m = {}
+        copy_network = Network()
 
-		dst = self.getRandomNeuron(self.outputNode_list)
-		synOut = Synapse(tmp, dst, self.EPSILON * random.random())
-		tmp.addOutput(synOut)
-		dst.addInput(synOut)
+        original_actuator_list = self.actuatorList
 
-		self.inputNode_list.append(tmp)
-		self.outputNode_list.append(tmp)
-		self.inputOutputNode_list.append(tmp)
+        copy_actuator_list = [Neuron(), Neuron(), Neuron(), Neuron()]
+        copy_network.actuatorList = copy_actuator_list
 
-	def mutateAddSynapse(self):
-		src = self.getRandomNeuron(self.inputNode_list)
-		dst = src
-		while src == dst:
-			dst = self.getRandomNeuron(self.outputNode_list)
+        for i in range(len(original_actuator_list)):
+            q.append(original_actuator_list[i])
+            m[original_actuator_list[i]] = copy_actuator_list[i]
+            copy_actuator_list[i].k = original_actuator_list[i].k
 
-		syn = Synapse(src, dst, self.EPSILON * random.random())
-		src.addOutput(syn)
-		dst.addInput(syn)
+        copy_io_nodes = []
+        copy_i_nodes = []
+        copy_o_nodes = []
+        copy_sensors = []
 
-	def copy(self):
-		q = []
-		m = {}
-		copyNetwork = Network()
+        for sensor in self.sensorList:
+            tmp = Neuron()
+            m[sensor] = tmp
+            tmp.k = sensor.k
+            q.append(sensor)
 
-		originalActuator = self.actuator
+            copy_sensors.append(tmp)
+            copy_i_nodes.append(tmp)
 
-		copyActuator = Neuron()
-		copyNetwork.setActuator(copyActuator)
+        while len(q) > 0:
+            original_node = q.pop()
 
-		q.append(originalActuator)
-		m[originalActuator] = copyActuator
-		copyActuator.k = originalActuator.k
+            i_syns = original_node.inputList
+            o_syns = original_node.outputList
 
-		copyioNodes = []
-		copyiNodes = []
-		copyoNodes = []
-		copySensors = []
+            copy_node = m[original_node]
+            copy_node.k = original_node.k
 
-		for sensor in self.sensor_list:
-			tmp = Neuron()
-			m[sensor] = tmp
-			q.append(sensor)
-			copySensors.append(tmp)
-			copyiNodes.append(tmp)
+            for syn in i_syns:
+                input_original = syn.sourceNeuron
 
-		while len(q) > 0:
-			originalNode = q.pop()
+                if input_original in list(m.keys()):
+                    input_copy = m[input_original]
 
-			iSyns = originalNode.getInputList()
-			oSyns = originalNode.getOutputList()
+                    exists = False
+                    for n in input_copy.outputList:
+                        if n.sourceNeuron == input_copy and n.destinationNeuron == copy_node:
+                            exists = True
+                            break
+                    if not exists:
+                        copy_syn = Synapse(input_copy, copy_node, syn.weight)
+                        copy_node.add_input(copy_syn)
+                        input_copy.add_output(copy_syn)
+                else:
+                    input_copy = Neuron()
+                    input_copy.k = input_original.k
+                    copy_io_nodes.append(input_copy)
 
-			copyNode = m[originalNode]
-			copyNode.k = originalNode.k
+                    copy_syn = Synapse(input_copy, copy_node, syn.weight)
+                    input_copy.add_output(copy_syn)
+                    copy_node.add_input(copy_syn)
+                    m[input_original] = input_copy
+                    q.append(input_original)
 
-			for syn in iSyns:
-				inputOriginal = syn.getSourceNeuron()
+            for syn in o_syns:
+                output_original = syn.destinationNeuron
 
-				if inputOriginal in list(m.keys()):
-					inputCopy = m[inputOriginal]
+                if output_original in list(m.keys()):
+                    output_copy = m[output_original]
 
-					exists = False
-					for n in inputCopy.getOutputList():
-						if n.getSourceNeuron() == inputCopy and n.getDestinationNeuron() == copyNode:
-							exists = True
-							break
-					if exists == False:
-						copySyn = Synapse(inputCopy, copyNode, syn.getWeight())
-						copyNode.addInput(copySyn)
-						inputCopy.addOutput(copySyn)
-				else:
-					inputCopy = Neuron()
-					inputCopy.k = inputOriginal.k
-					copyioNodes.append(inputCopy)
+                    exists = False
+                    for n in output_copy.inputList:
+                        if n.sourceNeuron == copy_node and n.destinationNeuron == output_copy:
+                            exists = True
+                            break
+                    if not exists:
+                        copy_syn = Synapse(copy_node, output_copy, syn.weight)
+                        copy_node.add_output(copy_syn)
+                        output_copy.add_input(copy_syn)
+                else:
+                    output_copy = Neuron()
+                    output_copy.k = output_original.k
+                    copy_io_nodes.append(output_copy)
 
-					copySyn = Synapse(inputCopy, copyNode, syn.getWeight())
-					inputCopy.addOutput(copySyn)
-					copyNode.addInput(copySyn)
-					m[inputOriginal] = inputCopy
-					q.append(inputOriginal)
+                    copy_syn = Synapse(copy_node, output_copy, syn.weight)
+                    output_copy.add_input(copy_syn)
+                    copy_node.add_output(copy_syn)
+                    m[output_original] = output_copy
+                    q.append(output_original)
 
-			for syn in oSyns:
-				outputOriginal = syn.getDestinationNeuron()
+        for n in copy_io_nodes:
+            copy_i_nodes.append(n)
+            copy_o_nodes.append(n)
+        copy_o_nodes.extend(copy_actuator_list)
 
-				if outputOriginal in list(m.keys()):
-					outputCopy = m[outputOriginal]
+        copy_network.sensorList = copy_sensors
+        copy_network.inputNodeList = copy_i_nodes
+        copy_network.outputNodeList = copy_o_nodes
+        copy_network.inputOutputNodeList = copy_io_nodes
 
-					exists = False
-					for n in outputCopy.getOutputList():
-						if n.getSourceNeuron() == copyNode and n.getDestinationNeuron() == outputCopy:
-							exists = True
-							break
-					if exists == False:
-						copySyn = Synapse(copyNode, outputCopy, syn.getWeight())
-						copyNode.addOutput(copySyn)
-						outputCopy.addInput(copySyn)
-				else:
-					outputCopy = Neuron()
-					outputCopy.k = outputOriginal.k
-					copyioNodes.append(outputCopy)
-
-					copySyn = Synapse(copyNode, outputCopy, syn.getWeight())
-					outputCopy.addInput(copySyn)
-					copyNode.addOutput(copySyn)
-					m[outputOriginal] = outputCopy
-					q.append(outputOriginal)
-
-		for n in copyioNodes:
-			copyiNodes.append(n)
-			copyoNodes.append(n)
-		copyoNodes.append(copyActuator)
-
-		copyNetwork.setSensorList(copySensors)
-		copyNetwork.setInputNodeList(copyiNodes)
-		copyNetwork.setOutputNodeList(copyoNodes)
-		copyNetwork.setInputOutputNodeList(copyioNodes)
-
-		return copyNetwork
+        return copy_network

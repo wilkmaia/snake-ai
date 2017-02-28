@@ -1,16 +1,19 @@
+import game
+
+
 class Food:
-	x = 0
-	y = 0
-	STEP = 24
+    x = 0
+    y = 0
 
-	def __init__(self, step, x=0, y=0):
-		self.x = x * self.STEP;
-		self.y = y * self.STEP;
-		self.step = step
+    def __init__(self, x=0, y=0):
+        self.x = x * game.STEP
+        self.y = y * game.STEP
+        self.available = True
 
-	def draw(self, surface, image):
-		surface.blit(image, (self.x, self.y))
+    def draw(self, surface, image):
+        if self.available:
+            surface.blit(image, (self.x, self.y))
 
-	def rellocate(self, x=0, y=0):
-		self.x = x * self.STEP;
-		self.y = y * self.STEP;
+    def relocate(self, x=0, y=0):
+        self.x = x * game.STEP
+        self.y = y * game.STEP
