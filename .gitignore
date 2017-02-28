@@ -54,3 +54,5 @@ Temporary Items
 .idea/snake-ai.iml
 .idea/workspace.xml
 src/network - Copy.txt
+src/network_visualizer/*
+src/network.txt
