@@ -14,7 +14,7 @@ class Neuron:
     def __init__(self):
         self.z = 0
         self.y = 0
-        self.k = random.random()
+        self.k = random.randint(0, 99999999)
 
         self.inputList = []
         self.outputList = []

@@ -7,11 +7,14 @@ import sys
 from pygame.locals import *
 import pygame
 
+import json
+
 from snake import Snake
 from food import Food
 from neuron import visitedNeurons
 
 STEP = 12
+CROSSOVER_BEST_PERCENT = 0.40  # Max = 0.50
 
 
 def check_collision(x1, y1, x2, y2):
@@ -54,6 +57,8 @@ class Game:
         self._startTime = time.time()
         self._display = True
         self._paused = False
+        self._print_data = False
+        self.snakeMinFitness = 0
 
         self.liveSnakes = self.MAX_SNAKES
         for i in range(self.MAX_SNAKES):
@@ -126,11 +131,12 @@ class Game:
                 snake.isDead = True
 
                 self.liveSnakes -= 1
-                snake.calc_fitness(3 - time.time()-self.startTime)
+                snake.calc_fitness(15 - time.time()+self.startTime)
                 self.meanFitness += snake.fitness
 
                 if snake.fitness < self.minFitness:
                     self.minFitness = snake.fitness
+                    self.snakeMinFitness = snake.snakeNumber
 
                 # print("Wall collision! - Food Count:", snake.foodCount, "/ Fitness:", snake.fitness)
 
@@ -138,11 +144,12 @@ class Game:
             if snake.collided_on_self():
                 snake.isDead = True
                 self.liveSnakes -= 1
-                snake.calc_fitness(5 - time.time()-self.startTime)
+                snake.calc_fitness(20 - time.time()+self.startTime)
                 self.meanFitness += snake.fitness
 
                 if snake.fitness < self.minFitness:
                     self.minFitness = snake.fitness
+                    self.snakeMinFitness = snake.snakeNumber
 
                 # print("Self collision! - Food Count:", snake.foodCount, "/ Fitness:", snake.fitness)
 
@@ -188,6 +195,8 @@ class Game:
                         self._paused = not self._paused
                     if event.key == pygame.K_d:
                         self._display = not self._display
+                    if event.key == pygame.K_q:
+                        self._print_data = True
                     """
                     if event.key == pygame.K_RIGHT:
                         for snake in self.snakeList:
@@ -207,11 +216,13 @@ class Game:
 
     def reset_level(self, forced=False):
         fitness = {}
+        snake_min_fitness = 0
         for idx, snake in enumerate(self.snakeList):
             if not snake.isDead:
                 snake.calc_fitness(-(time.time() - self.startTime))
                 if self.minFitness > snake.fitness:
                     self.minFitness = snake.fitness
+                    self.snakeMinFitness = snake.snakeNumber
                     self.meanFitness += snake.fitness
 
             fitness[idx] = snake.fitness
@@ -223,25 +234,26 @@ class Game:
             new_list.append(self.snakeList[idx])
 
         # CROSSOVER ALGORITHM 2.0
-        # THE WORST MEMBERS (50%) OF THE POPULATION WILL BE FORGOTTEN
-        # THE BEST MEMBERS WILL MUTATE
+        # THE <CROSSOVER_BEST_PERCENT>% BEST MEMBERS WILL BE KEPT UNTOUCHED
+        # THEIR COPIES WILL MUTATE
         #
-        # THE POPULATION WILL BE REFILLED BY MIMICKING GOOD MEMBERS BEFORE MUTATION
-        # THE RATE OF A GOOD MEMBER BEING PICKED IS THE INVERSE OF ITS FITNESS
-        n = math.floor(self.MAX_SNAKES * 0.5)
+        # THE POPULATION WILL BE REFILLED WITH SPECIAL MUTATIONS OF SELECTED
+        # MEMBERS ALONG THEM. LOWER FITNESS MEANS HIGHER CHANCE OF BEING PICKED
+        n = math.floor(self.MAX_SNAKES * CROSSOVER_BEST_PERCENT)
         best_members = new_list[:n]
         max_ = 1 / best_members[0].fitness
 
-        start = self.MAX_SNAKES - n
-        for i in range(start, self.MAX_SNAKES):
+        for i in range(n, 2*n):
+            new_list[i].network = new_list[i-n].network.copy()
+            new_list[i].network.mutate()
+
+        for i in range(2*n, self.MAX_SNAKES):
             while True:
                 good_snake = random.choice(best_members)
                 if random.uniform(0, max_) < 1 / good_snake.fitness:
                     break
             new_list[i].network = good_snake.network.copy()
-
-        for snake in best_members:
-            snake.network.mutate()
+            new_list[i].network.mutate(delta=0.5)
 
         # CROSSOVER ALGORITHM
         # THE BETTER MEMBERS (HALF) OF THE POPULATION MUTATE
@@ -258,11 +270,13 @@ class Game:
         #     good_boy.network.mutate()
 
         food_count = 0
+        snake_most_pieces = 0
         single_food_count = 0
         for snake in self.snakeList:
             food_count += snake.foodCount
             if snake.foodCount > single_food_count:
                 single_food_count = snake.foodCount
+                snake_most_pieces = snake.snakeNumber
             snake.reset(random.randint(0, self.MAX_COORD), random.randint(0, self.MAX_COORD))
 
         for food in self.foodList:
@@ -279,11 +293,22 @@ class Game:
             print("Forced reset!!!!")
         print("Gen", self.run, "info:")
         print("Time elapsed:", time.time() - self.startTime, "seconds")
-        print("Min fitness gen: ", self.minFitness, "/ Mean fitness: ", self.meanFitness)
+        print("Min fitness gen:", self.minFitness,
+              "snake #{} / Mean fitness:".format(self.snakeMinFitness), self.meanFitness)
         print("Overall Min Fitness:", self.overallMinFitness)
-        print("Max food pieces caught by single snake:", single_food_count)
+        print("Max food pieces caught by single snake:", single_food_count,
+              "snake #{}".format(snake_most_pieces))
         print("Total food pieces caught:", food_count)
         print("")
+
+        if self._print_data:
+            self._print_data = False
+            data = new_list[0].print_network(run=self.run)
+            f = open("network.txt", "w")
+            json.dump(data, f, sort_keys=True, indent=4)
+            f.close()
+            print("Best network data print to 'network.txt' file.")
+            print("")
 
         visitedNeurons.clear()
         self.loop = 0

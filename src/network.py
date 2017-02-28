@@ -15,8 +15,8 @@ def get_random_element(list_):
 
 
 class Network:
-    MUTATION_RATE = 0.7
-    INNER_MUTATION_RATE = 0.3
+    MUTATION_RATE = 1
+    INNER_MUTATION_RATE = 0.5
 
     def __init__(self, mut_rate=1):
         self.sensorList = []
@@ -33,6 +33,7 @@ class Network:
         self.outputNodeList.extend(self.actuatorList)
         self.MUTATION_RATE = mut_rate
         self.EPSILON = random.randint(-1000, 1000) / 1000
+        self.k = random.randint(0, 99999999)
 
     def activate(self):
         p = []
@@ -46,7 +47,7 @@ class Network:
 
     def set_input_values(self, list_):
         if len(self.sensorList) != len(list_):
-            # print("########### ERROR set_input_values - {} {}".format(len(self.sensorList), len(list_)))
+            print("########### ERROR set_input_values - {} {}".format(len(self.sensorList), len(list_)))
             # print("sensorList =", self.sensorList)
             # print("list_ =", list_)
             print(len(self.sensorList))
@@ -57,32 +58,37 @@ class Network:
             sensor.y = list_[i]
             i += 1
 
-    def mutate(self):
+    def mutate(self, delta=1):
         r = random.random()
         if r <= self.MUTATION_RATE:
-            self.mutate_change_weights()
+            self.mutate_change_weights(delta)
 
             if r <= self.INNER_MUTATION_RATE:
                 mut_type = random.randint(0, 3)
-                mutation_list = ["Add Neuron",
-                                 "Remove Neuron",
-                                 "Change Weights",
-                                 "Add Synapse"]
-                print("Mutating:", mutation_list[mut_type])
+                # mutation_list = ["Add Neuron",
+                #                  "Remove Neuron",
+                #                  "Change Weights",
+                #                  "Add Synapse"]
+                # print("Mutating:", mutation_list[mut_type])
                 if mut_type == 0:
                     self.mutate_add_neuron()
                 elif mut_type == 1:
                     self.mutate_remove_neuron()
                 elif mut_type == 2:
-                    self.mutate_change_weights()
+                    self.mutate_change_weights(delta)
                 elif mut_type == 3:
                     self.mutate_add_synapse()
 
-    def mutate_change_weights(self):
+    def mutate_change_weights(self, delta=1):
         if len(self.inputOutputNodeList) > 0:
             tmp = get_random_element(self.inputOutputNodeList)
             for syn in tmp.inputList:
-                syn.weight = random.uniform(-1, 1)
+                if delta == 1:
+                    syn.weight = random.uniform(-1, 1)
+                else:
+                    lower_limit = syn.weight * (1-delta)
+                    upper_limit = syn.weight * (1+delta)
+                    syn.weight = random.uniform(lower_limit, upper_limit)
 
     def mutate_remove_neuron(self):
         if len(self.inputOutputNodeList) > 0:
@@ -125,6 +131,9 @@ class Network:
         syn = Synapse(src, dst, random.uniform(-1, 1))
         src.add_output(syn)
         dst.add_input(syn)
+
+    def mutate_special(self):
+        self.mutate_change_weights(delta=0.15)
 
     def copy(self):
         q = []
@@ -227,3 +236,12 @@ class Network:
         copy_network.inputOutputNodeList = copy_io_nodes
 
         return copy_network
+
+    def __key(self):
+        return self.k
+
+    def __eq__(self, other):
+        return self.k == other.k
+
+    def __hash__(self):
+        return hash(self.__key())

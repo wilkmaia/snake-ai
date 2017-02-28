@@ -19,7 +19,7 @@ class Snake:
     MUL = 1
     UPDATE_COUNT_MAX = 0
     NETWORK_MUTATE_RATE = 1
-    NUMBER_OF_INPUTS = 10
+    NUMBER_OF_INPUTS = 6
 
     def __init__(self, x, y, length, snake_number):
         self.x = []
@@ -41,6 +41,11 @@ class Snake:
         self.inputDistanceRight = 0
         self.inputDistanceBottom = 0
         self.inputDistanceLeft = 0
+        self.lastMoves = [0, 0]
+        self.forbiddenMove = (self.DIRECTION.value + 2) % 4
+        self.inputNextTile = 0
+        self.inputRightTile = 0
+        self.inputLeftTile = 0
 
         self.network = Network(mut_rate=self.NETWORK_MUTATE_RATE)
         self.foodCount = 0
@@ -49,7 +54,6 @@ class Snake:
         self.fitness = 0
         self.inputList = []
         self.updateCount = 0
-        self.lastMoves = [0, 0, 0, 0]
         self.setup_network()
 
     # dir
@@ -67,7 +71,8 @@ class Snake:
             else:
                 next_dir_value = (self.DIRECTION.value-1)
 
-        self.DIRECTION = Direction(next_dir_value)
+        next_dir = Direction(next_dir_value)
+        return self.get_next_x_y(dir_=next_dir)
 
     def update(self):
         if self.isDead:
@@ -86,10 +91,11 @@ class Snake:
                 self.inputDistanceRight,
                 self.inputDistanceBottom,
                 self.inputDistanceLeft,
-                self.lastMoves[0],
-                self.lastMoves[1],
-                self.lastMoves[2],
-                self.lastMoves[3]
+                # self.forbiddenMove,
+                # self.lastMoves[0],
+                # self.lastMoves[1],
+                # self.lastMoves[2],
+                # self.lastMoves[3]
             ])
 
             # TURN COUNTERCLOCKWISE OR CLOCKWISE
@@ -102,9 +108,7 @@ class Snake:
 
             # MOVE UP, RIGHT, DOWN OR LEFT
             prop = self.network.propagate()
-            for i in range(len(prop)):
-                prop[i] = abs(0.5 - prop[i])
-            idx = prop.index(min(prop))
+            idx = prop.index(max(prop))
             next_dir = Direction(idx)
             if self.DIRECTION == Direction.UP and next_dir == Direction.DOWN:
                 next_dir = Direction.UP
@@ -115,33 +119,33 @@ class Snake:
             elif self.DIRECTION == Direction.RIGHT and next_dir == Direction.LEFT:
                 next_dir = Direction.RIGHT
             self.DIRECTION = next_dir
+            # self.forbiddenMove = (idx + 2) % 4
 
             # UPDATE LAST MOVES LIST
             self.lastMoves = self.lastMoves[1:]
             self.lastMoves.append(idx / 3)
 
-            last_x = self.x[-1]
-            last_y = self.y[-1]
-
             for i in range(self.length-1, 0, -1):
                 self.x[i] = self.x[i-1]
                 self.y[i] = self.y[i-1]
 
-            if self.DIRECTION == Direction.UP:
-                self.y[0] -= game.STEP
-            elif self.DIRECTION == Direction.RIGHT:
-                self.x[0] += game.STEP
-            elif self.DIRECTION == Direction.DOWN:
-                self.y[0] += game.STEP
-            elif self.DIRECTION == Direction.LEFT:
-                self.x[0] -= game.STEP
-
-            if last_x == self.x[0] and last_y == self.y[0]:
-                self.groundCovered -= 0.5
-            else:
-                self.groundCovered += 0.5
-
+            self.x[0], self.y[0] = self.get_next_x_y()
             self.updateCount = 0
+
+    def get_next_x_y(self, dir_=None):
+        if dir_ is None:
+            dir_ = self.DIRECTION
+        x = self.x[0]
+        y = self.y[0]
+        if dir_ == Direction.UP:
+            y -= game.STEP
+        elif dir_ == Direction.RIGHT:
+            x += game.STEP
+        elif dir_ == Direction.DOWN:
+            y += game.STEP
+        elif dir_ == Direction.LEFT:
+            x -= game.STEP
+        return x, y
 
     def draw(self, surface, image):
         if self.isDead:
@@ -150,9 +154,11 @@ class Snake:
         for i in range(self.length):
             surface.blit(image, (self.x[i], self.y[i]))
 
-    def collided_on_self(self):
-        x1 = self.x[0]
-        y1 = self.y[0]
+    def collided_on_self(self, x1=-1, y1=-1):
+        if x1 == -1:
+            x1 = self.x[0]
+        if y1 == -1:
+            y1 = self.y[0]
         for i in range(1, self.length):
             if game.check_collision(x1, y1, self.x[i], self.y[i]):
                 return True
@@ -170,9 +176,9 @@ class Snake:
         # Inputs
         # X and Y distances to the next food piece
         # Distances to the 4 walls
-        # Last 4 moves
+        # Last 2 moves
         self.inputList = [Neuron(), Neuron(), Neuron(), Neuron(), Neuron(),
-                          Neuron(), Neuron(), Neuron(), Neuron(), Neuron()]
+                          Neuron()]
 
         self.network.sensorList = self.inputList
         self.network.inputNodeList = self.inputList
@@ -220,10 +226,42 @@ class Snake:
         else:
             self.inputDistanceLeft = 1 / self.x[0]/game.STEP
 
+        # Inputs represent what lays on the next tile, to the right and to the left
+        # next_x, next_y = self.get_next_x_y()
+        # if x == next_x and y == next_y:
+        #     self.inputNextTile = 1
+        # elif 0 < next_x <= game.Game.WIDTH or 0 < next_y <= game.Game.HEIGHT:
+        #     self.inputNextTile = -1
+        # elif self.collided_on_self(x1=next_x, y1=next_y):
+        #     self.inputNextTile = -1
+        # else:
+        #     self.inputNextTile = 0
+        #
+        # right_x, right_y = self.turn(dir_=0)
+        # left_x, left_y = self.turn(dir_=1)
+        #
+        # if x == right_x and y == right_y:
+        #     self.inputRightTile = 1
+        # elif 0 < right_x <= game.Game.WIDTH or 0 < right_y <= game.Game.HEIGHT:
+        #     self.inputRightTile = -1
+        # elif self.collided_on_self(x1=right_x, y1=right_y):
+        #     self.inputRightTile = -1
+        # else:
+        #     self.inputRightTile = 0
+        #
+        # if x == left_x and y == left_y:
+        #     self.inputLeftTile = 1
+        # elif 0 < left_x <= game.Game.WIDTH or 0 < left_y <= game.Game.HEIGHT:
+        #     self.inputLeftTile = -1
+        # elif self.collided_on_self(x1=left_x, y1=left_y):
+        #     self.inputLeftTile = -1
+        # else:
+        #     self.inputLeftTile = 0
+
     def calc_fitness(self, penalty=1):
-        self.fitness = 1/math.exp(self.foodCount-5)\
-                       + math.exp(penalty)\
-                       + 1/math.exp(self.groundCovered/5)
+        self.fitness = 1 / math.exp(self.foodCount - penalty)\
+                       # + 1/math.exp(penalty)\
+                       # + 1/math.exp(self.groundCovered/5)
 
     def reset(self, x=-1, y=-1):
         self.isDead = False
@@ -242,4 +280,42 @@ class Snake:
         self.updateCount = 0
         self.foodCount = 0
         self.groundCovered = 0
-        self.lastMoves = [0, 0, 0, 0]
+        self.lastMoves = [0, 0]
+
+    def print_network(self, run):
+        network = self.network
+
+        network_data = {"network": network.k, "hidden_nodes": [],
+                        "output_nodes": [], "sensor_nodes": [],
+                        "generations": run}
+        for neuron in network.inputOutputNodeList:
+            network_data["hidden_nodes"].append({neuron.k: {"output_synapses": [],
+                                                            "input_synapses": []}})
+
+            x = network_data["hidden_nodes"][-1][neuron.k]["output_synapses"]
+            for synapse in neuron.outputList:
+                x.append({synapse.k: synapse.weight,
+                          "other_end": synapse.destinationNeuron.k})
+
+            x = network_data["hidden_nodes"][-1][neuron.k]["input_synapses"]
+            for synapse in neuron.inputList:
+                x.append({synapse.k: synapse.weight,
+                          "other_end": synapse.sourceNeuron.k})
+
+        for neuron in network.sensorList:
+            network_data["sensor_nodes"].append({neuron.k: {"output_synapses": []}})
+
+            x = network_data["sensor_nodes"][-1][neuron.k]["output_synapses"]
+            for synapse in neuron.outputList:
+                x.append({synapse.k: synapse.weight,
+                          "other_end": synapse.destinationNeuron.k})
+
+        for neuron in network.actuatorList:
+            network_data["output_nodes"].append({neuron.k: {"input_synapses": []}})
+
+            x = network_data["output_nodes"][-1][neuron.k]["input_synapses"]
+            for synapse in neuron.inputList:
+                x.append({synapse.k: synapse.weight,
+                          "other_end": synapse.sourceNeuron.k})
+
+        return network_data

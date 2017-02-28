@@ -2,9 +2,6 @@ import game
 
 
 class Food:
-    x = 0
-    y = 0
-
     def __init__(self, x=0, y=0):
         self.x = x * game.STEP
         self.y = y * game.STEP
