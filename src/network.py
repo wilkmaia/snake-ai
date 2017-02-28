@@ -81,14 +81,17 @@ class Network:
 
     def mutate_change_weights(self, delta=1):
         if len(self.inputOutputNodeList) > 0:
-            tmp = get_random_element(self.inputOutputNodeList)
-            for syn in tmp.inputList:
-                if delta == 1:
-                    syn.weight = random.uniform(-1, 1)
-                else:
-                    lower_limit = syn.weight * (1-delta)
-                    upper_limit = syn.weight * (1+delta)
-                    syn.weight = random.uniform(lower_limit, upper_limit)
+            if delta == 1:
+                tmp = get_random_element(self.inputOutputNodeList)
+                for syn in tmp.inputList:
+                    if delta == 1:
+                        syn.weight = random.uniform(-1, 1)
+            else:
+                for tmp in self.inputOutputNodeList:
+                    for syn in tmp.inputList:
+                        lower_limit = syn.weight * (1 - delta)
+                        upper_limit = syn.weight * (1 + delta)
+                        syn.weight = random.uniform(lower_limit, upper_limit)
 
     def mutate_remove_neuron(self):
         if len(self.inputOutputNodeList) > 0:

@@ -12,9 +12,13 @@ import json
 from snake import Snake
 from food import Food
 from neuron import visitedNeurons
+from neuron import Neuron
+from synapse import Synapse
+from network import Network
 
-STEP = 12
+STEP = 5
 CROSSOVER_BEST_PERCENT = 0.40  # Max = 0.50
+SAVE_FILE = "network.txt"
 
 
 def check_collision(x1, y1, x2, y2):
@@ -29,10 +33,10 @@ def get_distance(x1, y1, x2, y2):
 
 
 class Game:
-    WIDTH = 984
-    HEIGHT = 984
-    MAX_SNAKES = 50  # make sure it's even
-    MAX_FOOD = 20
+    WIDTH = 855
+    HEIGHT = 855
+    MAX_SNAKES = 10  # make sure it's even
+    MAX_FOOD = 30
     MAX_LOOPS_PER_RUN = 2500
     TIME_SLEEP = 0.001
     MAX_COORD = WIDTH / STEP - 1
@@ -58,6 +62,7 @@ class Game:
         self._display = True
         self._paused = False
         self._print_data = False
+        self._load_data = False
         self.snakeMinFitness = 0
 
         self.liveSnakes = self.MAX_SNAKES
@@ -111,6 +116,8 @@ class Game:
                 if dist < min_distance:
                     idx_min_distance = i
                     min_distance = dist
+                    snake.nextFoodX = food.x
+                    snake.nextFoodY = food.y
 
                 if check_collision(snake.x[0], snake.y[0], food.x, food.y):
                     # Found food
@@ -197,6 +204,9 @@ class Game:
                         self._display = not self._display
                     if event.key == pygame.K_q:
                         self._print_data = True
+                    if event.key == pygame.K_l:
+                        self._load_data = True
+                        self.reset_level(forced=True)
                     """
                     if event.key == pygame.K_RIGHT:
                         for snake in self.snakeList:
@@ -216,7 +226,6 @@ class Game:
 
     def reset_level(self, forced=False):
         fitness = {}
-        snake_min_fitness = 0
         for idx, snake in enumerate(self.snakeList):
             if not snake.isDead:
                 snake.calc_fitness(-(time.time() - self.startTime))
@@ -301,13 +310,21 @@ class Game:
         print("Total food pieces caught:", food_count)
         print("")
 
+        if self._load_data:
+            self._load_data = False
+            f = open(SAVE_FILE, "r")
+            data = json.load(f)
+            f.close()
+
+            self.load_network(data)
+
         if self._print_data:
             self._print_data = False
             data = new_list[0].print_network(run=self.run)
-            f = open("network.txt", "w")
-            json.dump(data, f, sort_keys=True, indent=4)
+            f = open(SAVE_FILE, "w")
+            json.dump(data, f, sort_keys=False, indent=4)
             f.close()
-            print("Best network data print to 'network.txt' file.")
+            print("Best network data printed to 'network.txt' file.")
             print("")
 
         visitedNeurons.clear()
@@ -317,3 +334,128 @@ class Game:
         self.minFitness = sys.float_info.max
         self.meanFitness = 0
         self.startTime = time.time()
+
+        return
+
+    def load_network(self, o):
+        sensor_nodes = o["sensor_nodes"]
+        hidden_nodes = o["hidden_nodes"]
+        output_nodes = o["output_nodes"]
+        self.run = int(o["generations"])
+        network = Network()
+        network.k = int(o["network"])
+        network.EPSILON = float(o["epsilon"])
+        network.MUTATION_RATE = float(o["mutation_rate"])
+
+        synapses_visited = []
+        network.actuatorList = []
+        network.sensorList = []
+        network.inputNodeList = []
+        network.outputNodeList = []
+        network.inputOutputNodeList = []
+
+        neurons = []
+        for n in sensor_nodes:
+            _id = list(n.keys())[0]
+            neuron = Neuron()
+            neuron.k = int(_id)
+            network.sensorList.append(neuron)
+            network.inputNodeList.append(neuron)
+            neurons.append(neuron)
+        for n in output_nodes:
+            _id = list(n.keys())[0]
+            neuron = Neuron()
+            neuron.k = int(_id)
+            network.actuatorList.append(neuron)
+            network.outputNodeList.append(neuron)
+            neurons.append(neuron)
+        for n in hidden_nodes:
+            _id = list(n.keys())[0]
+            neuron = Neuron()
+            neuron.k = int(_id)
+            network.inputOutputNodeList.append(neuron)
+            neurons.append(neuron)
+
+        # Sensor Nodes
+        for n in sensor_nodes:
+            _id = list(n.keys())[0]
+            neuron = self.find_neuron(neurons, int(_id))
+
+            for s in n[_id]["output_synapses"]:
+                for key, val in s.items():
+                    if key in synapses_visited or key == "other_end":
+                        continue
+
+                    other_end = self.find_neuron(neurons, int(s["other_end"]))
+                    syn = Synapse(neuron,
+                                  other_end,
+                                  float(val))
+                    syn.k = int(key)
+                    synapses_visited.append(key)
+                    neuron.outputList.append(syn)
+                    other_end.inputList.append(syn)
+
+        # Output Nodes
+        for n in output_nodes:
+            _id = list(n.keys())[0]
+            neuron = self.find_neuron(neurons, int(_id))
+
+            for s in n[_id]["input_synapses"]:
+                for key, val in s.items():
+                    if key in synapses_visited or key == "other_end":
+                        continue
+
+                    other_end = self.find_neuron(neurons, int(s["other_end"]))
+                    syn = Synapse(other_end,
+                                  neuron,
+                                  float(val))
+                    syn.k = int(key)
+                    synapses_visited.append(key)
+                    neuron.inputList.append(syn)
+                    other_end.outputList.append(syn)
+
+        # Hidden Nodes
+        for n in hidden_nodes:
+            _id = list(n.keys())[0]
+            neuron = self.find_neuron(neurons, int(_id))
+
+            for s in n[_id]["input_synapses"]:
+                for key, val in s.items():
+                    if key in synapses_visited or key == "other_end":
+                        continue
+
+                    other_end = self.find_neuron(neurons, int(s["other_end"]))
+                    syn = Synapse(other_end,
+                                  neuron,
+                                  float(val))
+                    syn.k = int(key)
+                    synapses_visited.append(key)
+                    neuron.inputList.append(syn)
+                    other_end.outputList.append(syn)
+
+            for s in n[_id]["output_synapses"]:
+                for key, val in s.items():
+                    if key in synapses_visited or key == "other_end":
+                        continue
+
+                    other_end = self.find_neuron(neurons, int(s["other_end"]))
+                    syn = Synapse(neuron,
+                                  other_end,
+                                  float(val))
+                    syn.k = int(key)
+                    synapses_visited.append(key)
+                    neuron.outputList.append(syn)
+                    other_end.inputList.append(syn)
+
+        for snake in self.snakeList:
+            snake.network = network.copy()
+
+        return
+
+    @staticmethod
+    def find_neuron(neurons, _id):
+        for n in neurons:
+            if n.k == _id:
+                return n
+
+        return None
